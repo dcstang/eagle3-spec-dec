@@ -224,7 +224,7 @@ run_step "04" "quantize_fp8" bash -c "
 # ── Step 05: benchmarks ───────────────────────────────────────────────────────
 BASE_MODEL="Qwen/Qwen3-8B"
 FP8_MODEL="Qwen3-8B-FP8-Dynamic"
-DRAFT_HEAD="output/checkpoints"
+DRAFT_HEAD="output/checkpoints/4"
 PORT=8001
 SRV_PID=""
 
