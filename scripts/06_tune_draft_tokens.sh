@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Optional: sweep num-speculative-tokens (1, 2, 3) for a given model config
-# to find the optimal value. Pass MODEL and optional DRAFT_HEAD path.
+# Sweep num_speculative_tokens (1, 2, 3) for a given model + draft head.
+# Usage: bash scripts/06_tune_draft_tokens.sh <model> <draft_head_path>
 # Uses vllm_venv.
-set -euo pipefail
+set -uo pipefail
 
 source vllm_venv/bin/activate
 
@@ -14,20 +14,33 @@ mkdir -p "$RESULTS_DIR"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 wait_for_server() {
-    until curl -sf "http://localhost:$PORT/health" > /dev/null 2>&1; do sleep 2; done
+    local deadline=$(( SECONDS + 600 ))
+    until curl -sf "http://localhost:$PORT/health" > /dev/null 2>&1; do
+        (( SECONDS > deadline )) && { echo "ERROR: server timeout"; return 1; }
+        sleep 5
+    done
 }
-kill_server() { pkill -f "vllm serve" 2>/dev/null || true; sleep 3; }
+
+kill_server() {
+    local pid
+    pid=$(lsof -ti :"$PORT" -sTCP:LISTEN 2>/dev/null || true)
+    [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+    local deadline=$(( SECONDS + 30 ))
+    while lsof -i :"$PORT" -sTCP:LISTEN &>/dev/null; do
+        (( SECONDS > deadline )) && break; sleep 2
+    done
+}
 
 for N in 1 2 3; do
     echo "=== draft_tokens=$N ==="
     kill_server
+    # vllm 0.20.0: speculative decoding configured via --speculative-config JSON
     vllm serve "$MODEL" \
         --port "$PORT" \
         --dtype auto \
-        --disable-prefix-caching \
-        --speculative-model "$DRAFT_HEAD" \
-        --num-speculative-tokens "$N" \
+        --speculative-config "{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": $N, \"method\": \"eagle3\"}" \
         &
+    SRV=$!
     wait_for_server
 
     OUT="$RESULTS_DIR/${TIMESTAMP}_drafttokens${N}.txt"
@@ -39,9 +52,9 @@ for N in 1 2 3; do
         --dataset-path philschmid/mt-bench \
         --num-prompts 80 \
         --seed 42 \
-        --disable-prefix-caching \
         2>&1 | tee "$OUT"
 
+    kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null
     kill_server
 done
 

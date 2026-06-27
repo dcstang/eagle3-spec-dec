@@ -258,14 +258,13 @@ run_step "05a" "bench_baseline" bash -c "
 "
 
 # 5b. Speculative decoding (draft_tokens=2)
+# vllm 0.20.0 uses --speculative-config JSON instead of --speculative-model / --num-speculative-tokens
 run_step "05b" "bench_spec_dec" bash -c "
     source vllm_venv/bin/activate
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
-        --disable-prefix-caching \
-        --speculative-model '$DRAFT_HEAD' \
-        --num-speculative-tokens 2 &
+        --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 2, \"method\": \"eagle3\"}' &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do
@@ -292,8 +291,7 @@ run_step "05c" "bench_fp8" bash -c "
     source vllm_venv/bin/activate
     vllm serve '$FP8_MODEL' \
         --port $PORT \
-        --dtype auto \
-        &
+        --dtype auto &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do
@@ -321,9 +319,7 @@ run_step "05d" "bench_fp8_spec" bash -c "
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
-        --disable-prefix-caching \
-        --speculative-model '$DRAFT_HEAD' \
-        --num-speculative-tokens 1 &
+        --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 1, \"method\": \"eagle3\"}' &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do
