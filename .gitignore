@@ -1,0 +1,29 @@
+# Homework source (not needed in repo)
+spec_dec+quantization_homework.py
+
+# Virtual environments
+speculators_venv/
+vllm_venv/
+comp_venv/
+
+# Cloned dependencies
+speculators_repo/
+
+# Data and model artifacts
+data/
+output/
+Qwen3-8B-FP8-Dynamic/
+results/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# HuggingFace cache
+.cache/
+
+# OS
+.DS_Store
