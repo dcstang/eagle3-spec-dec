@@ -25,7 +25,7 @@ $PYTHON -m venv vllm_venv
 source vllm_venv/bin/activate
 
 pip install --upgrade pip
-pip install vllm==0.20.0 "fastapi<0.137"
+pip install vllm==0.20.0 "fastapi<0.137" datasets
 deactivate
 
 # ── comp_venv ────────────────────────────────────────────────────────────────
