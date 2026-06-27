@@ -9,12 +9,12 @@ comp_venv/
 # Cloned dependencies
 speculators_repo/
 
-# Data and model artifacts
+# Large data and model artifacts
 data/
 output/
 Qwen3-8B-FP8-Dynamic/
-results/
-logs/
+
+# Keep results/ and logs/ — benchmark text outputs are small and needed
 
 # Python
 __pycache__/
