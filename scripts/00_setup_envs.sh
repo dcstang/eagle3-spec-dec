@@ -3,6 +3,9 @@
 # Run once on a fresh H100 node before any other script.
 set -uo pipefail   # no -e: run_all.sh owns retry/abort logic
 
+# System deps: python3.12-dev needed for triton/inductor gcc compilation step
+sudo apt-get install -y python3.12-dev
+
 PYTHON=python3.12
 
 # ── speculators_venv ─────────────────────────────────────────────────────────
