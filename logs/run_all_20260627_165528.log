@@ -1,0 +1,80 @@
+================================================================
+  eagle3-spec-dec full pipeline  |  Sat Jun 27 16:55:28 UTC 2026
+  Log: logs/run_all_20260627_165528.log
+  Resuming from step: 05b
+================================================================
+Checking prerequisites …
+Prerequisites OK.
+SKIP: setup_envs (before START_FROM=05b)
+SKIP: prepare_data (before START_FROM=05b)
+SKIP: train_eagle3 (before START_FROM=05b)
+SKIP: quantize_fp8 (before START_FROM=05b)
+SKIP: bench_baseline (before START_FROM=05b)
+
+────────────────────────────────────────────────────────────
+STEP [05b]: bench_spec_dec
+START: Sat Jun 27 16:55:28 UTC 2026
+────────────────────────────────────────────────────────────
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:299] 
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:299]        █     █     █▄   ▄█
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:299]  ▄▄ ▄█ █     █     █ ▀▄▀ █  version 0.20.0
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:299]   █▄█▀ █     █     █     █  model   Qwen/Qwen3-8B
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:299]    ▀▀  ▀▀▀▀▀ ▀▀▀▀▀ ▀     ▀
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:299] 
+(APIServer pid=9544) INFO 06-27 16:55:33 [utils.py:233] non-default args: {'model_tag': 'Qwen/Qwen3-8B', 'port': 8001, 'model': 'Qwen/Qwen3-8B', 'dtype': 'bfloat16', 'speculative_config': {'model': 'output/checkpoints', 'num_speculative_tokens': 2, 'method': 'eagle3'}}
+(APIServer pid=9544) Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+(APIServer pid=9544) INFO 06-27 16:55:34 [model.py:555] Resolved architecture: Qwen3ForCausalLM
+(APIServer pid=9544) INFO 06-27 16:55:34 [model.py:1680] Using max model len 40960
+(APIServer pid=9544) Traceback (most recent call last):
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/bin/vllm", line 6, in <module>
+(APIServer pid=9544)     sys.exit(main())
+(APIServer pid=9544)              ^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/entrypoints/cli/main.py", line 92, in main
+(APIServer pid=9544)     args.dispatch_function(args)
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/entrypoints/cli/serve.py", line 122, in cmd
+(APIServer pid=9544)     uvloop.run(run_server(args))
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/uvloop/__init__.py", line 96, in run
+(APIServer pid=9544)     return __asyncio.run(
+(APIServer pid=9544)            ^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+(APIServer pid=9544)     return runner.run(main)
+(APIServer pid=9544)            ^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+(APIServer pid=9544)     return self._loop.run_until_complete(task)
+(APIServer pid=9544)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/uvloop/__init__.py", line 48, in wrapper
+(APIServer pid=9544)     return await main
+(APIServer pid=9544)            ^^^^^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 678, in run_server
+(APIServer pid=9544)     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 692, in run_server_worker
+(APIServer pid=9544)     async with build_async_engine_client(
+(APIServer pid=9544)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=9544)     return await anext(self.gen)
+(APIServer pid=9544)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 100, in build_async_engine_client
+(APIServer pid=9544)     async with build_async_engine_client_from_engine_args(
+(APIServer pid=9544)   File "/usr/lib/python3.12/contextlib.py", line 210, in __aenter__
+(APIServer pid=9544)     return await anext(self.gen)
+(APIServer pid=9544)            ^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 124, in build_async_engine_client_from_engine_args
+(APIServer pid=9544)     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+(APIServer pid=9544)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/engine/arg_utils.py", line 1907, in create_engine_config
+(APIServer pid=9544)     speculative_config = self.create_speculative_config(
+(APIServer pid=9544)                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/vllm/engine/arg_utils.py", line 1592, in create_speculative_config
+(APIServer pid=9544)     return SpeculativeConfig(**self.speculative_config)
+(APIServer pid=9544)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(APIServer pid=9544)   File "/home/id_rsa_dt/eagle3-spec-dec/vllm_venv/lib/python3.12/site-packages/pydantic/_internal/_dataclasses.py", line 121, in __init__
+(APIServer pid=9544)     s.__pydantic_validator__.validate_python(ArgsKwargs(args, kwargs), self_instance=s)
+(APIServer pid=9544) pydantic_core._pydantic_core.ValidationError: 1 validation error for SpeculativeConfig
+(APIServer pid=9544)   Value error, Invalid repository ID or local directory specified: 'output/checkpoints'.
+(APIServer pid=9544) Please verify the following requirements:
+(APIServer pid=9544) 1. Provide a valid Hugging Face repository ID.
+(APIServer pid=9544) 2. Specify a local directory that contains a recognized configuration file.
+(APIServer pid=9544)    - For Hugging Face models: ensure the presence of a 'config.json'.
+(APIServer pid=9544)    - For Mistral models: ensure the presence of a 'params.json'.
+(APIServer pid=9544)  [type=value_error, input_value=ArgsKwargs((), {'model': ...config_format': 'auto'}), input_type=ArgsKwargs]
+(APIServer pid=9544)     For further information visit https://errors.pydantic.dev/2.13/v/value_error

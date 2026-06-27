@@ -1,0 +1,19 @@
+================================================================
+  eagle3-spec-dec full pipeline  |  Sat Jun 27 16:41:04 UTC 2026
+  Log: logs/run_all_20260627_164104.log
+  Resuming from step: 05a
+================================================================
+Checking prerequisites …
+Prerequisites OK.
+SKIP: setup_envs (before START_FROM=05a)
+SKIP: prepare_data (before START_FROM=05a)
+SKIP: train_eagle3 (before START_FROM=05a)
+SKIP: quantize_fp8 (before START_FROM=05a)
+
+────────────────────────────────────────────────────────────
+STEP [05a]: bench_baseline
+START: Sat Jun 27 16:41:04 UTC 2026
+────────────────────────────────────────────────────────────
+usage: vllm [-h] [-v]
+            {chat,complete,serve,launch,bench,collect-env,run-batch} ...
+vllm: error: unrecognized arguments: --disable-prefix-caching
