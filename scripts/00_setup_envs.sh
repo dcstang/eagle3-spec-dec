@@ -26,6 +26,7 @@ source vllm_venv/bin/activate
 
 pip install --upgrade pip
 pip install vllm==0.20.0 "fastapi<0.137" datasets
+pip install -e speculators_repo   # needed for --trust-remote-code draft head loading
 deactivate
 
 # ── comp_venv ────────────────────────────────────────────────────────────────

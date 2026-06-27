@@ -264,7 +264,8 @@ run_step "05b" "bench_spec_dec" bash -c "
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
-        --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 2, \"method\": \"eagle3\"}' &
+        --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 2, \"method\": \"eagle3\"}' \
+        --trust-remote-code &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do
@@ -319,7 +320,8 @@ run_step "05d" "bench_fp8_spec" bash -c "
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
-        --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 1, \"method\": \"eagle3\"}' &
+        --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 1, \"method\": \"eagle3\"}' \
+        --trust-remote-code &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do

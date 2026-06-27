@@ -39,6 +39,7 @@ for N in 1 2 3; do
         --port "$PORT" \
         --dtype auto \
         --speculative-config "{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": $N, \"method\": \"eagle3\"}" \
+        --trust-remote-code \
         &
     SRV=$!
     wait_for_server
