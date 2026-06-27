@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Full pipeline: runs all tasks in order, retries each step once on failure.
-# Usage: bash run_all.sh
+# Usage:
+#   bash run_all.sh                     # run everything from the start
+#   START_FROM=05a bash run_all.sh      # skip to a specific step
+#
+# Step IDs: 00 01 02 03 04 05a 05b 05c 05d 06
+#
 # Logs: logs/run_all_<timestamp>.log  (tee'd to stdout as well)
 set -uo pipefail
 
@@ -11,22 +16,41 @@ LOG_FILE="$LOG_DIR/run_all_${TIMESTAMP}.log"
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+# Step to resume from (default: start from the beginning)
+START_FROM="${START_FROM:-00}"
+
 echo "================================================================"
 echo "  eagle3-spec-dec full pipeline  |  $(date)"
 echo "  Log: $LOG_FILE"
+echo "  Resuming from step: $START_FROM"
 echo "================================================================"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 VLLM_PID=""
+SKIP=true   # flip to false once we reach START_FROM
+
+should_run() {
+    local id="$1"
+    if $SKIP && [[ "$id" == "$START_FROM"* || "$id" > "$START_FROM" || "$id" == "$START_FROM" ]]; then
+        SKIP=false
+    fi
+    ! $SKIP
+}
 
 run_step() {
-    local name="$1"
-    shift
+    local id="$1"
+    local name="$2"
+    shift 2
+
+    if ! should_run "$id"; then
+        echo "SKIP: $name (before START_FROM=$START_FROM)"
+        return 0
+    fi
+
     echo ""
     echo "────────────────────────────────────────────────────────────"
-    echo "STEP: $name"
-    echo "CMD:  $*"
+    echo "STEP [$id]: $name"
     echo "START: $(date)"
     echo "────────────────────────────────────────────────────────────"
 
@@ -49,34 +73,32 @@ run_step() {
 }
 
 kill_vllm() {
+    local port="${1:-8001}"
     if [[ -n "$VLLM_PID" ]]; then
         echo "Stopping vLLM (PID=$VLLM_PID) …"
         kill "$VLLM_PID" 2>/dev/null || true
         wait "$VLLM_PID" 2>/dev/null || true
         VLLM_PID=""
     fi
-    pkill -f "vllm serve" 2>/dev/null || true
-    # Wait for the port to be fully released before starting the next server
-    local port="${1:-8001}"
+    # Kill by exact port rather than name pattern to avoid matching this script
+    local pid
+    pid=$(lsof -ti :"$port" -sTCP:LISTEN 2>/dev/null || true)
+    [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+    # Wait for port to free
     local deadline=$(( SECONDS + 30 ))
     while lsof -i :"$port" -sTCP:LISTEN &>/dev/null; do
-        if (( SECONDS > deadline )); then
-            echo "WARN: port $port still in use after 30s — continuing anyway."
-            break
-        fi
+        (( SECONDS > deadline )) && { echo "WARN: port $port still busy after 30s"; break; }
         sleep 2
     done
 }
 
 wait_for_vllm() {
     local port="$1"
-    # 600s: covers cold HuggingFace download (~16 GB) + model load on first run
     local deadline=$(( SECONDS + 600 ))
     echo "Waiting for vLLM on port $port (up to 600s) …"
     until curl -sf "http://localhost:$port/health" > /dev/null 2>&1; do
         if (( SECONDS > deadline )); then
             echo "ERROR: vLLM did not become healthy within 600s."
-            kill_vllm "$port"
             return 1
         fi
         sleep 5
@@ -84,12 +106,12 @@ wait_for_vllm() {
     echo "vLLM ready."
 }
 
-# Run a single benchmark; --disable-prefix-caching is a server flag only,
-# so it is NOT passed to vllm bench serve here.
+# Run a benchmark; server must already be up. Kills server by PID when done.
 run_bench() {
     local tag="$1"
     local model="$2"
     local port="$3"
+    local srv_pid="$4"
     local out="results/${TIMESTAMP}_${tag}.txt"
     mkdir -p results
 
@@ -106,7 +128,23 @@ run_bench() {
         2>&1 | tee "$out"
     local rc=${PIPESTATUS[0]}
     deactivate
+
+    kill "$srv_pid" 2>/dev/null || true
+    wait "$srv_pid" 2>/dev/null || true
+    kill_vllm "$port"
     return $rc
+}
+
+# Start vllm serve; sets global SRV_PID
+start_vllm_serve() {
+    local port="$1"
+    shift
+    kill_vllm "$port"
+    source vllm_venv/bin/activate
+    vllm serve "$@" --port "$port" &
+    SRV_PID=$!
+    deactivate
+    wait_for_vllm "$port"
 }
 
 # ── Pre-flight checks ─────────────────────────────────────────────────────────
@@ -117,103 +155,82 @@ command -v curl       >/dev/null || { echo "ERROR: curl not found."; exit 1; }
 command -v lsof       >/dev/null || { echo "ERROR: lsof not found."; exit 1; }
 echo "Prerequisites OK."
 
-# ── Step 0: environment setup ─────────────────────────────────────────────────
-run_step "00_setup_envs" bash scripts/00_setup_envs.sh
+# ── Step 00: environment setup ────────────────────────────────────────────────
+run_step "00" "setup_envs" bash scripts/00_setup_envs.sh
 
-# ── Step 1: data preparation ──────────────────────────────────────────────────
-run_step "01_prepare_data" bash scripts/01_prepare_data.sh
+# ── Step 01: data preparation ─────────────────────────────────────────────────
+run_step "01" "prepare_data" bash scripts/01_prepare_data.sh
 
-# ── Step 2: hidden-state generation ──────────────────────────────────────────
-# Needs a vLLM server running from speculators_venv while generation runs.
-echo ""
-echo "────────────────────────────────────────────────────────────"
-echo "STEP: 02_generate_hidden_states"
-echo "START: $(date)"
-echo "────────────────────────────────────────────────────────────"
+# ── Step 02: hidden-state generation ─────────────────────────────────────────
+if should_run "02"; then
+    echo ""
+    echo "────────────────────────────────────────────────────────────"
+    echo "STEP [02]: generate_hidden_states"
+    echo "START: $(date)"
+    echo "────────────────────────────────────────────────────────────"
 
-launch_speculators_vllm() {
-    kill_vllm 8000
-    source speculators_venv/bin/activate
-    # model is positional; vllm passthrough args go after --
-    python speculators_repo/scripts/launch_vllm.py Qwen/Qwen3-8B \
-        -- \
-        --port 8000 \
-        --dtype bfloat16 \
-        &
-    VLLM_PID=$!
-    deactivate
-    wait_for_vllm 8000
-}
+    launch_speculators_vllm() {
+        kill_vllm 8000
+        source speculators_venv/bin/activate
+        python speculators_repo/scripts/launch_vllm.py Qwen/Qwen3-8B \
+            -- --port 8000 --dtype bfloat16 &
+        VLLM_PID=$!
+        deactivate
+        wait_for_vllm 8000
+    }
 
-generate_hidden_states() {
-    rm -rf /tmp/hidden_states/*
-    source speculators_venv/bin/activate
-    python speculators_repo/scripts/data_generation_offline.py \
-        --model Qwen/Qwen3-8B \
-        --preprocessed-data data/sharegpt_processed \
-        --output data/hidden_states \
-        --endpoint http://localhost:8000/v1 \
-        --concurrency 8 \
-        --validate-outputs
-    local rc=$?
-    deactivate
-    return $rc
-}
+    generate_hidden_states() {
+        rm -rf /tmp/hidden_states/*
+        source speculators_venv/bin/activate
+        python speculators_repo/scripts/data_generation_offline.py \
+            --model Qwen/Qwen3-8B \
+            --preprocessed-data data/sharegpt_processed \
+            --output data/hidden_states \
+            --endpoint http://localhost:8000/v1 \
+            --concurrency 8 \
+            --validate-outputs
+        local rc=$?
+        deactivate
+        return $rc
+    }
 
-launch_speculators_vllm
-gen_rc=0
-generate_hidden_states || gen_rc=$?
-kill_vllm 8000
-
-if [[ $gen_rc -ne 0 ]]; then
-    echo "WARN: hidden-state generation failed. Retrying once …"
     launch_speculators_vllm
-    gen_rc=0
-    generate_hidden_states || gen_rc=$?
+    gen_rc=0; generate_hidden_states || gen_rc=$?
     kill_vllm 8000
+
     if [[ $gen_rc -ne 0 ]]; then
-        echo "ERROR: hidden-state generation failed after retry. Aborting."
-        exit $gen_rc
+        echo "WARN: hidden-state generation failed. Retrying once …"
+        launch_speculators_vllm
+        gen_rc=0; generate_hidden_states || gen_rc=$?
+        kill_vllm 8000
+        if [[ $gen_rc -ne 0 ]]; then
+            echo "ERROR: hidden-state generation failed after retry. Aborting."
+            exit $gen_rc
+        fi
     fi
+    echo "OK: generate_hidden_states  ($(date))"
 fi
-echo "OK: 02_generate_hidden_states  ($(date))"
 
-# ── Step 3: EAGLE-3 training ──────────────────────────────────────────────────
-run_step "03_train_eagle3" bash scripts/03_train_eagle3.sh
+# ── Step 03: EAGLE-3 training ─────────────────────────────────────────────────
+run_step "03" "train_eagle3" bash scripts/03_train_eagle3.sh
 
-# ── Step 4: FP8 quantization ──────────────────────────────────────────────────
-run_step "04_quantize_fp8" bash -c "
+# ── Step 04: FP8 quantization ─────────────────────────────────────────────────
+run_step "04" "quantize_fp8" bash -c "
     source comp_venv/bin/activate
     python scripts/04_quantize_fp8.py
     deactivate
 "
 
-# ── Step 5: benchmarks ────────────────────────────────────────────────────────
+# ── Step 05: benchmarks ───────────────────────────────────────────────────────
 BASE_MODEL="Qwen/Qwen3-8B"
 FP8_MODEL="Qwen3-8B-FP8-Dynamic"
 DRAFT_HEAD="output/checkpoints"
 PORT=8001
-
-# Pre-download the base model weights so the 600s timeout isn't eaten by download
-echo "Pre-downloading $BASE_MODEL weights into HF cache …"
-source vllm_venv/bin/activate
-python -c "
-from huggingface_hub import snapshot_download
-snapshot_download('$BASE_MODEL')
-" || true   # non-fatal: vllm serve will retry the download itself
-deactivate
+SRV_PID=""
 
 # 5a. Baseline
-run_step "05a_bench_baseline" bash -c "
+run_step "05a" "bench_baseline" bash -c "
     source vllm_venv/bin/activate
-    kill_vllm_local() {
-        pkill -f 'vllm serve' 2>/dev/null || true
-        local deadline=\$(( SECONDS + 30 ))
-        while lsof -i :$PORT -sTCP:LISTEN &>/dev/null; do
-            (( SECONDS > deadline )) && break; sleep 2
-        done
-    }
-    kill_vllm_local
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
@@ -233,22 +250,16 @@ run_step "05a_bench_baseline" bash -c "
         2>&1 | tee results/${TIMESTAMP}_01_baseline.txt
     rc=\${PIPESTATUS[0]}
     kill \$SRV 2>/dev/null; wait \$SRV 2>/dev/null
-    kill_vllm_local
+    # kill by port — avoids pkill pattern matching this script's cmdline
+    pid=\$(lsof -ti :$PORT -sTCP:LISTEN 2>/dev/null || true)
+    [[ -n \"\$pid\" ]] && kill \"\$pid\" 2>/dev/null || true
     deactivate
     exit \$rc
 "
 
 # 5b. Speculative decoding (draft_tokens=2)
-run_step "05b_bench_spec_dec" bash -c "
+run_step "05b" "bench_spec_dec" bash -c "
     source vllm_venv/bin/activate
-    kill_vllm_local() {
-        pkill -f 'vllm serve' 2>/dev/null || true
-        local deadline=\$(( SECONDS + 30 ))
-        while lsof -i :$PORT -sTCP:LISTEN &>/dev/null; do
-            (( SECONDS > deadline )) && break; sleep 2
-        done
-    }
-    kill_vllm_local
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
@@ -270,22 +281,15 @@ run_step "05b_bench_spec_dec" bash -c "
         2>&1 | tee results/${TIMESTAMP}_02_spec_dec_drafttokens2.txt
     rc=\${PIPESTATUS[0]}
     kill \$SRV 2>/dev/null; wait \$SRV 2>/dev/null
-    kill_vllm_local
+    pid=\$(lsof -ti :$PORT -sTCP:LISTEN 2>/dev/null || true)
+    [[ -n \"\$pid\" ]] && kill \"\$pid\" 2>/dev/null || true
     deactivate
     exit \$rc
 "
 
 # 5c. FP8 only
-run_step "05c_bench_fp8" bash -c "
+run_step "05c" "bench_fp8" bash -c "
     source vllm_venv/bin/activate
-    kill_vllm_local() {
-        pkill -f 'vllm serve' 2>/dev/null || true
-        local deadline=\$(( SECONDS + 30 ))
-        while lsof -i :$PORT -sTCP:LISTEN &>/dev/null; do
-            (( SECONDS > deadline )) && break; sleep 2
-        done
-    }
-    kill_vllm_local
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
@@ -305,22 +309,15 @@ run_step "05c_bench_fp8" bash -c "
         2>&1 | tee results/${TIMESTAMP}_03_fp8_only.txt
     rc=\${PIPESTATUS[0]}
     kill \$SRV 2>/dev/null; wait \$SRV 2>/dev/null
-    kill_vllm_local
+    pid=\$(lsof -ti :$PORT -sTCP:LISTEN 2>/dev/null || true)
+    [[ -n \"\$pid\" ]] && kill \"\$pid\" 2>/dev/null || true
     deactivate
     exit \$rc
 "
 
 # 5d. FP8 + speculative decoding (draft_tokens=1)
-run_step "05d_bench_fp8_spec" bash -c "
+run_step "05d" "bench_fp8_spec" bash -c "
     source vllm_venv/bin/activate
-    kill_vllm_local() {
-        pkill -f 'vllm serve' 2>/dev/null || true
-        local deadline=\$(( SECONDS + 30 ))
-        while lsof -i :$PORT -sTCP:LISTEN &>/dev/null; do
-            (( SECONDS > deadline )) && break; sleep 2
-        done
-    }
-    kill_vllm_local
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
@@ -342,13 +339,14 @@ run_step "05d_bench_fp8_spec" bash -c "
         2>&1 | tee results/${TIMESTAMP}_04_fp8_spec_dec_drafttokens1.txt
     rc=\${PIPESTATUS[0]}
     kill \$SRV 2>/dev/null; wait \$SRV 2>/dev/null
-    kill_vllm_local
+    pid=\$(lsof -ti :$PORT -sTCP:LISTEN 2>/dev/null || true)
+    [[ -n \"\$pid\" ]] && kill \"\$pid\" 2>/dev/null || true
     deactivate
     exit \$rc
 "
 
-# ── Step 6: draft token sweep (FP8 + spec) ───────────────────────────────────
-run_step "06_tune_draft_tokens" bash scripts/06_tune_draft_tokens.sh "$FP8_MODEL" "$DRAFT_HEAD"
+# ── Step 06: draft token sweep (FP8 + spec) ──────────────────────────────────
+run_step "06" "tune_draft_tokens" bash scripts/06_tune_draft_tokens.sh "$FP8_MODEL" "$DRAFT_HEAD"
 
 # ── Final summary ─────────────────────────────────────────────────────────────
 echo ""
