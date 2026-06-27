@@ -7,24 +7,29 @@ set -uo pipefail   # no -e: run_all.sh owns retry/abort logic
 source speculators_venv/bin/activate
 
 MODEL="Qwen/Qwen3-8B"
-HIDDEN_STATES_DIR="data/hidden_states"
-OUTPUT_DIR="output/checkpoints"
+DATA_PATH="data/sharegpt_processed"          # root dir with preprocessed data + token_freq.pt
+HIDDEN_STATES_PATH="data/hidden_states"      # precomputed hidden states
+SAVE_PATH="output/checkpoints"
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$SAVE_PATH"
 
-python speculators_repo/scripts/train_eagle3.py \
-    --model "$MODEL" \
-    --hidden-states-dir "$HIDDEN_STATES_DIR" \
-    --output-dir "$OUTPUT_DIR" \
-    --num-epochs 5 \
-    --batch-size 4 \
-    --grad-accum-steps 4 \
+python speculators_repo/scripts/train.py \
+    --verifier-name-or-path "$MODEL" \
+    --speculator-type eagle3 \
+    --draft-arch qwen3 \
+    --data-path "$DATA_PATH" \
+    --hidden-states-path "$HIDDEN_STATES_PATH" \
+    --on-missing raise \
+    --save-path "$SAVE_PATH" \
+    --epochs 5 \
     --lr 1e-3 \
-    --warmup-steps 100 \
+    --scheduler-warmup-steps 100 \
     --seed 42 \
-    --log-every 50
+    --log-freq 50 \
+    --save-best \
+    --checkpoint-freq 1
 
-echo "Training complete. Checkpoints → $OUTPUT_DIR"
-echo "Pick the checkpoint with the lowest val/loss_epoch for serving."
+echo "Training complete. Checkpoints → $SAVE_PATH"
+echo "Use the checkpoint marked best (lowest val/loss_epoch) for serving."
 
 deactivate

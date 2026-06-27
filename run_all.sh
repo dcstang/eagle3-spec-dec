@@ -134,8 +134,9 @@ echo "────────────────────────�
 launch_speculators_vllm() {
     kill_vllm 8000
     source speculators_venv/bin/activate
-    python speculators_repo/scripts/launch_vllm.py \
-        --model Qwen/Qwen3-8B \
+    # model is positional; vllm passthrough args go after --
+    python speculators_repo/scripts/launch_vllm.py Qwen/Qwen3-8B \
+        -- \
         --port 8000 \
         --dtype bfloat16 \
         &
@@ -147,12 +148,13 @@ launch_speculators_vllm() {
 generate_hidden_states() {
     rm -rf /tmp/hidden_states/*
     source speculators_venv/bin/activate
-    python speculators_repo/scripts/generate_hidden_states.py \
+    python speculators_repo/scripts/data_generation_offline.py \
         --model Qwen/Qwen3-8B \
-        --data-dir data/sharegpt_processed \
-        --output-dir data/hidden_states \
-        --vllm-url http://localhost:8000 \
-        --max-seq-len 2048
+        --preprocessed-data data/sharegpt_processed \
+        --output data/hidden_states \
+        --endpoint http://localhost:8000/v1 \
+        --concurrency 8 \
+        --validate-outputs
     local rc=$?
     deactivate
     return $rc

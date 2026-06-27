@@ -14,10 +14,10 @@ mkdir -p "$OUTPUT_DIR"
 
 python speculators_repo/scripts/prepare_data.py \
     --model "$MODEL" \
-    --dataset sharegpt \
+    --data sharegpt \
     --max-samples "$MAX_SAMPLES" \
-    --max-seq-len "$SEQ_LEN" \
-    --output-dir "$OUTPUT_DIR"
+    --seq-length "$SEQ_LEN" \
+    --output "$OUTPUT_DIR"
 
 echo "Data prepared → $OUTPUT_DIR"
 deactivate

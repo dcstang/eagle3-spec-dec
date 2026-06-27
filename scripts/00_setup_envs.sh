@@ -13,7 +13,8 @@ pip install --upgrade pip
 # Safe to re-run: skip clone if already present
 [ -d speculators_repo ] || git clone --branch v0.5.0 https://github.com/vllm-project/speculators.git speculators_repo
 pip install -e speculators_repo
-# speculators pulls in its own vllm/transformers; keep it isolated
+# speculators does not always pull vllm transitively; install explicitly
+pip install vllm==0.20.0 "fastapi<0.137"
 deactivate
 
 # ── vllm_venv ────────────────────────────────────────────────────────────────
