@@ -234,7 +234,7 @@ run_step "05a" "bench_baseline" bash -c "
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
-        --disable-prefix-caching &
+        &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do
@@ -293,7 +293,7 @@ run_step "05c" "bench_fp8" bash -c "
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
-        --disable-prefix-caching &
+        &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
     until curl -sf http://localhost:$PORT/health &>/dev/null; do
