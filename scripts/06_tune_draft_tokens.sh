@@ -38,7 +38,7 @@ for N in 1 2 3; do
     vllm serve "$MODEL" \
         --port "$PORT" \
         --dtype auto \
-        --no-prefix-caching \
+        --disable-prefix-caching \
         --speculative-config "{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": $N, \"method\": \"eagle3\"}" \
         --trust-remote-code \
         &

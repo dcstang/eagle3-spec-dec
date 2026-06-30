@@ -17,7 +17,7 @@ pip install --upgrade pip
 [ -d speculators_repo ] || git clone --branch v0.5.0 https://github.com/vllm-project/speculators.git speculators_repo
 pip install -e speculators_repo
 # speculators does not always pull vllm transitively; install explicitly
-pip install vllm==0.20.0 "fastapi<0.137"
+pip install vllm "fastapi<0.137"
 deactivate
 
 # ── vllm_venv ────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ $PYTHON -m venv vllm_venv
 source vllm_venv/bin/activate
 
 pip install --upgrade pip
-pip install vllm==0.20.0 "fastapi<0.137" datasets
+pip install vllm "fastapi<0.137" datasets
 pip install -e speculators_repo   # needed for --trust-remote-code draft head loading
 deactivate
 
