@@ -270,6 +270,7 @@ run_step "05b" "bench_spec_dec" bash -c "
         --no-enable-prefix-caching \
         --optimization-level 3 \
         --performance-mode throughput \
+        --gpu-memory-utilization 0.85 \
         --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 2, \"method\": \"eagle3\"}' \
         --trust-remote-code &
     SRV=\$!
@@ -333,6 +334,7 @@ run_step "05d" "bench_fp8_spec" bash -c "
         --no-enable-prefix-caching \
         --optimization-level 3 \
         --performance-mode throughput \
+        --gpu-memory-utilization 0.85 \
         --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 1, \"method\": \"eagle3\"}' \
         --trust-remote-code &
     SRV=\$!
