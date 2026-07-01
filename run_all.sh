@@ -234,6 +234,9 @@ run_step "05a" "bench_baseline" bash -c "
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
+        --no-enable-prefix-caching \
+        --optimization-level 3 \
+        --performance-mode throughput \
         &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
@@ -264,6 +267,9 @@ run_step "05b" "bench_spec_dec" bash -c "
     vllm serve '$BASE_MODEL' \
         --port $PORT \
         --dtype bfloat16 \
+        --no-enable-prefix-caching \
+        --optimization-level 3 \
+        --performance-mode throughput \
         --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 2, \"method\": \"eagle3\"}' \
         --trust-remote-code &
     SRV=\$!
@@ -293,6 +299,9 @@ run_step "05c" "bench_fp8" bash -c "
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
+        --no-enable-prefix-caching \
+        --optimization-level 3 \
+        --performance-mode throughput \
         &
     SRV=\$!
     deadline=\$(( SECONDS + 600 ))
@@ -321,6 +330,9 @@ run_step "05d" "bench_fp8_spec" bash -c "
     vllm serve '$FP8_MODEL' \
         --port $PORT \
         --dtype auto \
+        --no-enable-prefix-caching \
+        --optimization-level 3 \
+        --performance-mode throughput \
         --speculative-config '{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": 1, \"method\": \"eagle3\"}' \
         --trust-remote-code &
     SRV=\$!
