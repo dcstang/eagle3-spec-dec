@@ -42,7 +42,8 @@ for N in 1 2 3; do
         --optimization-level 3 \
         --performance-mode throughput \
         --generation-config vllm \
-        --gpu-memory-utilization 0.90 \
+        --gpu-memory-utilization 0.88 \
+        --kv-cache-dtype fp8 \
         --speculative-config "{\"model\": \"$DRAFT_HEAD\", \"num_speculative_tokens\": $N, \"method\": \"eagle3\"}" \
         --trust-remote-code \
         &
